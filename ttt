@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1% ERS 交易日誌</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#f5f5f5; --card:#fff; --border:#ebebeb;
+  --text:#1a1a1a; --muted:#888; --light:#f9f9f9;
+  --green:#16a34a; --green-bg:#dcfce7; --green-light:#f0fdf4;
+  --red:#dc2626; --red-bg:#fee2e2; --red-light:#fff5f5;
+  --blue:#2563eb; --purple:#7c3aed;
+  --accent:#1a1a1a; --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── App Shell ── */
+.app{display:flex;min-height:100vh;}
+.sidebar{width:210px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px;gap:24px;flex-shrink:0;}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ── Brand ── */
+.brand{display:flex;align-items:center;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.brand-logo{width:36px;height:36px;background:#1a1a1a;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;letter-spacing:-0.5px;}
+.brand-text .name{font-size:14px;font-weight:800;letter-spacing:-0.5px;}
+.brand-text .sub{font-size:11px;color:var(--muted);margin-top:1px;}
+
+/* ── Nav ── */
+.nav-section{display:flex;flex-direction:column;gap:3px;}
+.nav-label{font-size:10px;font-weight:700;color:#bbb;letter-spacing:0.8px;text-transform:uppercase;padding:0 8px;margin-bottom:4px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;}
+.nav-item:hover{background:var(--light);color:var(--text);}
+.nav-item.active{background:#f0f0f0;color:var(--text);font-weight:600;}
+.nav-item .icon{font-size:15px;width:18px;text-align:center;}
+
+/* ── Quick Actions ── */
+.quick-actions{margin-top:auto;}
+.quick-actions h4{font-size:11px;font-weight:700;color:#bbb;letter-spacing:0.8px;margin-bottom:8px;padding:0 2px;}
+.btn-qa{display:flex;align-items:center;gap:7px;width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);transition:all .15s;margin-bottom:6px;}
+.btn-qa:hover{background:var(--light);border-color:#ccc;}
+.btn-qa .plus{color:var(--green);font-size:15px;font-weight:700;}
+
+/* ── Topbar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--card);}
+.topbar-tabs{display:flex;gap:2px;}
+.tab-btn{padding:6px 14px;border-radius:7px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;}
+.tab-btn:hover{background:var(--light);}
+.tab-btn.active{background:var(--accent);color:#fff;font-weight:600;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.month-nav{display:flex;align-items:center;gap:6px;}
+.month-nav button{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--muted);font-size:13px;transition:all .15s;}
+.month-nav button:hover{background:var(--light);}
+#monthLabel{font-size:13px;font-weight:700;min-width:90px;text-align:center;}
+
+/* ── Content ── */
+.content{flex:1;overflow-y:auto;padding:20px 24px;}
+
+/* ── Stat Cards ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+.stat-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:16px 18px;}
+.stat-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.stat-head .lbl{font-size:11px;color:var(--muted);font-weight:500;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;}
+.stat-val.g{color:var(--green);}
+.stat-val.r{color:var(--red);}
+.stat-val.n{color:var(--text);}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.stat-sub .up{color:var(--green);}
+.stat-sub .dn{color:var(--red);}
+
+/* ── Grid Layout ── */
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.card-title{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.4px;margin-bottom:14px;text-transform:uppercase;}
+
+/* ── Calendar ── */
+.cal-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.cal-topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);}
+.cal-topbar .title{font-size:13px;font-weight:700;}
+.cal-stats{font-size:12px;color:var(--muted);}
+.cal-stats span{font-weight:700;}
+.cal-stats .gv{color:var(--green);}
+.cal-header{display:grid;grid-template-columns:repeat(5,1fr) 80px;background:var(--light);border-bottom:1px solid var(--border);}
+.cal-lbl{text-align:center;padding:8px 0;font-size:10px;font-weight:700;color:#bbb;letter-spacing:0.5px;}
+.cal-grid{display:grid;grid-template-columns:repeat(5,1fr) 80px;}
+.cal-cell{border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;min-height:72px;padding:7px 9px;position:relative;}
+.cal-cell:hover{background:#fafafa;}
+.cal-cell.empty{background:var(--light);}
+.cal-cell.win{background:var(--green-light);}
+.cal-cell.loss{background:var(--red-light);}
+.cal-cell.today .cal-d{background:#1a1a1a;color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;}
+.cal-d{font-size:11px;font-weight:600;color:#ccc;margin-bottom:4px;}
+.cal-ct{font-size:10px;font-weight:600;color:#aaa;}
+.cal-pl{font-size:13px;font-weight:800;letter-spacing:-0.3px;}
+.cal-pl.g{color:var(--green);}
+.cal-pl.r{color:var(--red);}
+.cal-sum{background:#f9f9f9;border-right:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:6px 12px;}
+.sum-lbl{font-size:9px;color:#bbb;letter-spacing:0.5px;margin-bottom:2px;}
+.sum-ct{font-size:10px;color:#aaa;font-weight:600;}
+.sum-pl{font-size:14px;font-weight:800;letter-spacing:-0.3px;}
+
+/* ── Charts ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;}
+
+/* ── Table ── */
+.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.tbl-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);}
+.tbl-title{font-size:13px;font-weight:700;}
+.search-box{padding:6px 12px;border:1px solid var(--border);border-radius:7px;font-size:12px;outline:none;width:180px;}
+.search-box:focus{border-color:var(--accent);}
+table{width:100%;border-collapse:collapse;}
+thead tr th{text-align:left;padding:9px 14px;font-size:10px;font-weight:700;color:#bbb;letter-spacing:0.5px;background:var(--light);border-bottom:1px solid var(--border);}
+tbody tr td{padding:9px 14px;font-size:12px;border-bottom:1px solid #f5f5f5;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#fafafa;cursor:pointer;}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px;}
+.badge.long{background:var(--green-bg);color:var(--green);}
+.badge.short{background:var(--red-bg);color:var(--red);}
+.badge.win{background:var(--green-bg);color:var(--green);}
+.badge.loss{background:var(--red-bg);color:var(--red);}
+.badge.be{background:#f3f4f6;color:#666;}
+.pl-p{color:var(--green);font-weight:700;}
+.pl-n{color:var(--red);font-weight:700;}
+.rating-bar{display:flex;gap:2px;align-items:center;}
+.rating-pip{width:12px;height:6px;border-radius:2px;background:#e5e7eb;}
+.rating-pip.on{background:var(--green);}
+.tag-wrap{display:flex;gap:3px;flex-wrap:wrap;}
+.tag{padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;}
+.tag.pos{background:var(--green-bg);color:var(--green);}
+.tag.neg{background:var(--red-bg);color:var(--red);}
+
+/* ── Milestones ── */
+.milestone-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.ms-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.ms-cat{font-size:10px;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;}
+.ms-title{font-size:14px;font-weight:700;margin-bottom:6px;}
+.ms-target{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.ms-status{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.ms-status.achieved{background:var(--green-bg);color:var(--green);}
+.ms-status.inprog{background:#dbeafe;color:var(--blue);}
+.ms-status.notstart{background:#f3f4f6;color:#888;}
+
+/* ── Review ── */
+.review-tabs{display:flex;gap:8px;margin-bottom:16px;}
+.rtab{padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:all .15s;}
+.rtab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.review-list{display:flex;flex-direction:column;gap:12px;}
+.review-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.rc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.rc-date{font-size:11px;color:var(--muted);}
+.rc-mood{font-size:12px;font-weight:700;}
+.rc-mood.g{color:var(--green);}
+.rc-mood.n{color:#888;}
+.rc-mood.b{color:var(--red);}
+.rc-section{margin-bottom:8px;}
+.rc-lbl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.4px;margin-bottom:3px;}
+.rc-text{font-size:13px;color:var(--text);line-height:1.5;}
+
+/* ── Modal ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:#fff;border-radius:18px;padding:26px;width:520px;max-width:95vw;box-shadow:0 24px 64px rgba(0,0,0,.18);max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:15px;font-weight:800;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
+.modal h2 .close-btn{background:none;border:none;cursor:pointer;color:#bbb;font-size:18px;padding:0 4px;}
+.modal h2 .close-btn:hover{color:#333;}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.m-grid.single{grid-template-columns:1fr;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg.full{grid-column:1/-1;}
+.fg label{font-size:10px;font-weight:700;color:#aaa;letter-spacing:0.5px;}
+.fg input,.fg select,.fg textarea{padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);outline:none;font-family:inherit;transition:border .15s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#1a1a1a;}
+.fg textarea{resize:vertical;min-height:60px;}
+.m-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;}
+.btn-cancel{padding:8px 18px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;}
+.btn-save{padding:8px 18px;border:none;border-radius:8px;background:#1a1a1a;color:#fff;cursor:pointer;font-size:12px;font-weight:600;transition:opacity .15s;}
+.btn-save:hover{opacity:.8;}
+.btn-del{padding:8px 18px;border:none;border-radius:8px;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:12px;font-weight:600;}
+.btn-del:hover{background:#fecaca;}
+
+/* ── Misc ── */
+.section-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.section-hd h3{font-size:14px;font-weight:700;}
+.btn-add{padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;transition:all .15s;}
+.btn-add:hover{background:var(--light);}
+.btn-add .plus{color:var(--green);font-size:14px;}
+.empty-state{text-align:center;padding:40px;color:#bbb;font-size:13px;}
+.info-box{background:var(--light);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.6;margin-bottom:16px;}
+.info-box strong{color:var(--text);}
+
+/* GitHub guide */
+.gh-step{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.gh-step .step-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:#1a1a1a;color:#fff;border-radius:50%;font-size:11px;font-weight:700;margin-right:8px;}
+.gh-step h4{font-size:13px;font-weight:700;display:inline;vertical-align:middle;}
+.gh-step p{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6;}
+.gh-step code{background:#f3f4f6;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:12px;color:#333;}
+
+@media(max-width:900px){
+  .sidebar{width:60px;padding:14px 8px;}
+  .brand-text,.nav-item span:not(.icon),.quick-actions h4,.btn-qa span:not(.plus){display:none;}
+  .stat-row{grid-template-columns:1fr 1fr;}
+  .two-col{grid-template-columns:1fr;}
+  .chart-row{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ Sidebar ══ -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-logo">1%</div>
+    <div class="brand-text">
+      <div class="name">1% ERS</div>
+      <div class="sub">交易日誌</div>
+    </div>
+  </div>
+
+  <nav class="nav-section">
+    <div class="nav-label">主選單</div>
+    <div class="nav-item active" onclick="showTab('dashboard')"><span class="icon">📊</span><span>總覽</span></div>
+    <div class="nav-item" onclick="showTab('analytics')"><span class="icon">📈</span><span>分析報告</span></div>
+    <div class="nav-item" onclick="showTab('review')"><span class="icon">📓</span><span>覆盤日記</span></div>
+    <div class="nav-item" onclick="showTab('trades')"><span class="icon">📋</span><span>交易紀錄</span></div>
+    <div class="nav-item" onclick="showTab('missed')"><span class="icon">🔍</span><span>錯失交易</span></div>
+    <div class="nav-item" onclick="showTab('milestones')"><span class="icon">🏆</span><span>里程碑</span></div>
+    <div class="nav-item" onclick="showTab('guide')"><span class="icon">🚀</span><span>GitHub 教學</span></div>
+  </nav>
+
+  <div class="quick-actions">
+    <h4>快速新增</h4>
+    <button class="btn-qa" onclick="openModal('trade',null)"><span class="plus">+</span><span>新增交易</span></button>
+    <button class="btn-qa" onclick="openModal('review-entry',null)"><span class="plus">+</span><span>今日覆盤</span></button>
+  </div>
+</aside>
+
+<!-- ══ Main ══ -->
+<div class="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-tabs" id="tabBtns">
+      <button class="tab-btn active" onclick="showTab('dashboard')">📊 總覽</button>
+      <button class="tab-btn" onclick="showTab('analytics')">📈 分析</button>
+      <button class="tab-btn" onclick="showTab('review')">📓 覆盤</button>
+      <button class="tab-btn" onclick="showTab('trades')">📋 交易紀錄</button>
+      <button class="tab-btn" onclick="showTab('missed')">🔍 錯失交易</button>
+      <button class="tab-btn" onclick="showTab('milestones')">🏆 里程碑</button>
+    </div>
+    <div class="topbar-right">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <span id="monthLabel">2026年3月</span>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="contentArea"></div>
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ Trade Modal ══ -->
+<div class="overlay" id="tradeOverlay">
+<div class="modal">
+  <h2>
+    <span id="tradeModalTitle">➕ 新增交易</span>
+    <button class="close-btn" onclick="closeModals()">✕</button>
+  </h2>
+  <div class="m-grid">
+    <div class="fg"><label>日期</label><input type="date" id="t-date"></div>
+    <div class="fg"><label>商品</label>
+      <select id="t-inst">
+        <option>NQ</option><option>ES</option><option>GC</option><option>YM</option>
+        <option>MNQ</option><option>MES</option><option>CL</option><option>NAS100</option><option>XAUUSD</option><option>Other</option>
+      </select>
+    </div>
+    <div class="fg"><label>方向</label>
+      <select id="t-dir"><option>LONG 多</option><option>SHORT 空</option></select>
+    </div>
+    <div class="fg"><label>SMC 策略</label>
+      <select id="t-setup">
+        <option>OB 訂單區塊</option><option>FVG 公平價值缺口</option>
+        <option>CHOCH 結構轉折</option><option>BOS 結構突破</option>
+        <option>流動性掃蕩</option><option>Breaker Block</option><option>均衡高低點</option><option>其他</option>
+      </select>
+    </div>
+    <div class="fg"><label>交易時段</label>
+      <select id="t-session"><option>紐約 AM</option><option>倫敦</option><option>紐約 PM</option><option>亞盤</option></select>
+    </div>
+    <div class="fg"><label>進場時窗 (NY時間)</label>
+      <select id="t-window">
+        <option>6-7am</option><option>7-8am</option><option>8-9am</option><option>9-10am</option>
+        <option>10-11am</option><option>11am-12pm</option><option>12-1pm</option><option>1-2pm</option>
+        <option>2-3pm</option><option>3-4pm</option><option>其他</option>
+      </select>
+    </div>
+    <div class="fg"><label>Prop Firm</label>
+      <select id="t-firm">
+        <option>Apex Trader</option><option>FTMO</option><option>Topstep</option>
+        <option>Bulenox</option><option>The Funded Trader</option><option>個人帳戶</option>
+      </select>
+    </div>
+    <div class="fg"><label>執行品質</label>
+      <select id="t-quality"><option>A+</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
+    </div>
+    <div class="fg"><label>盈虧 ($)</label><input type="number" id="t-pl" placeholder="例：1200 或 -500"></div>
+    <div class="fg"><label>R 倍數</label><input type="number" step="0.1" id="t-r" placeholder="例：2.5"></div>
+    <div class="fg"><label>評分 (1-5)</label>
+      <select id="t-rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select>
+    </div>
+    <div class="fg"><label>結果</label>
+      <select id="t-result"><option>WIN 獲利</option><option>LOSS 虧損</option><option>BE 保本</option></select>
+    </div>
+    <div class="fg"><label>遵守規則</label>
+      <select id="t-rules"><option>✅ 是</option><option>❌ 否</option></select>
+    </div>
+    <div class="fg"><label>BE 移至保本</label>
+      <select id="t-be"><option>✅ 是</option><option>❌ 否</option></select>
+    </div>
+    <div class="fg full"><label>正面標籤</label>
+      <select id="t-pos" multiple size="2" style="height:52px;">
+        <option>執行完美</option><option>良好管控</option><option>耐心等待</option><option>計畫一致</option>
+      </select>
+    </div>
+    <div class="fg full"><label>負面標籤</label>
+      <select id="t-neg" multiple size="2" style="height:52px;">
+        <option>提早離場</option><option>停損設置差</option><option>衝動進場</option><option>報復性交易</option><option>FOMO 追入</option>
+      </select>
+    </div>
+    <div class="fg full"><label>進場原因</label><textarea id="t-reason" placeholder="為什麼進場這筆交易？"></textarea></div>
+    <div class="fg full"><label>覆盤筆記</label><textarea id="t-note" placeholder="事後反思、下次改進方向..."></textarea></div>
+  </div>
+  <div class="m-actions">
+    <button class="btn-del" id="btnDelete" style="display:none" onclick="deleteTrade()">🗑 刪除</button>
+    <button class="btn-cancel" onclick="closeModals()">取消</button>
+    <button class="btn-save" onclick="saveTrade()">儲存交易</button>
+  </div>
+</div></div>
+
+<!-- Review Modal -->
+<div class="overlay" id="reviewOverlay">
+<div class="modal">
+  <h2><span>📓 每日覆盤</span><button class="close-btn" onclick="closeModals()">✕</button></h2>
+  <div class="m-grid">
+    <div class="fg"><label>日期</label><input type="date" id="r-date"></div>
+    <div class="fg"><label>今日心情</label>
+      <select id="r-mood">
+        <option>🟢 專注清晰</option><option>🔵 冷靜自律</option><option>⚪ 平穩</option>
+        <option>🟡 疲憊低能量</option><option>🟠 焦慮</option><option>🔴 沮喪煩躁</option>
+      </select>
+    </div>
+    <div class="fg full"><label>盤前計畫</label><textarea id="r-plan" placeholder="關鍵價位、偏多/偏空、今日最多幾筆交易..."></textarea></div>
+    <div class="fg full"><label>盤後檢討</label><textarea id="r-review" placeholder="今天發生了什麼？執行如何？"></textarea></div>
+    <div class="fg full"><label>今日教訓</label><textarea id="r-lesson" placeholder="今天最重要的一個領悟是..."></textarea></div>
+    <div class="fg"><label>交易筆數</label><input type="number" id="r-count" placeholder="0"></div>
+    <div class="fg"><label>淨盈虧 ($)</label><input type="number" id="r-pl" placeholder="0"></div>
+    <div class="fg"><label>規則遵守率</label>
+      <select id="r-adherence">
+        <option>100% — 完美</option><option>80%+ — 良好</option>
+        <option>60%+ — 尚可</option><option>低於60% — 需檢討</option><option>0% — 完全失控</option>
+      </select>
+    </div>
+  </div>
+  <div class="m-actions">
+    <button class="btn-cancel" onclick="closeModals()">取消</button>
+    <button class="btn-save" onclick="saveReview()">儲存覆盤</button>
+  </div>
+</div></div>
+
+<!-- Missed Trade Modal -->
+<div class="overlay" id="missedOverlay">
+<div class="modal">
+  <h2><span>🔍 新增錯失交易</span><button class="close-btn" onclick="closeModals()">✕</button></h2>
+  <div class="m-grid">
+    <div class="fg"><label>日期</label><input type="date" id="ms-date"></div>
+    <div class="fg"><label>商品</label>
+      <select id="ms-inst"><option>NQ</option><option>ES</option><option>GC</option><option>YM</option><option>其他</option></select>
+    </div>
+    <div class="fg"><label>方向</label>
+      <select id="ms-dir"><option>LONG 多</option><option>SHORT 空</option></select>
+    </div>
+    <div class="fg"><label>SMC 策略</label>
+      <select id="ms-setup">
+        <option>OB 訂單區塊</option><option>FVG 公平價值缺口</option>
+        <option>CHOCH 結構轉折</option><option>BOS 結構突破</option><option>其他</option>
+      </select>
+    </div>
+    <div class="fg"><label>預估 R 倍數</label><input type="number" step="0.1" id="ms-r" placeholder="例：2.5"></div>
+    <div class="fg"><label>錯失原因</label>
+      <select id="ms-why">
+        <option>沒注意到訊號</option><option>不在電腦旁</option>
+        <option>太謹慎沒進場</option><option>已達當日上限</option><option>還在學習此策略</option>
+      </select>
+    </div>
+    <div class="fg full"><label>圖表備註</label><textarea id="ms-note" placeholder="當時看到了什麼？入場邏輯是什麼？"></textarea></div>
+    <div class="fg full"><label>學到的教訓</label><textarea id="ms-lesson" placeholder="下次如何改進？"></textarea></div>
+  </div>
+  <div class="m-actions">
+    <button class="btn-cancel" onclick="closeModals()">取消</button>
+    <button class="btn-save" onclick="saveMissed()">儲存</button>
+  </div>
+</div></div>
+
+<script>
+// ══════════════════════════════════
+//  DATA LAYER (localStorage)
+// ══════════════════════════════════
+function load(key, def){ try{ return JSON.parse(localStorage.getItem(key))||def; }catch(e){ return def; } }
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+let trades = load('ers_trades', [
+  {id:'TRD-001',date:'2026-03-10',inst:'NQ',dir:'LONG',setup:'OB 訂單區塊',session:'紐約 AM',window:'9-10am',firm:'Apex Trader',quality:'A+',pl:2090,r:2.9,rating:5,result:'WIN',rules:true,be:false,pos:['執行完美'],neg:[],reason:'NY AM OB retest 後 BOS。HTF 偏多，LTF 確認K棒。',note:'完美執行，在回調時持倉。'},
+  {id:'TRD-002',date:'2026-03-10',inst:'ES',dir:'SHORT',setup:'FVG 公平價值缺口',session:'倫敦',window:'7-8am',firm:'FTMO',quality:'A',pl:2587.5,r:3.0,rating:4,result:'WIN',rules:true,be:true,pos:['良好管控'],neg:[],reason:'倫敦開盤進入未填 FVG。Premium 區間 + HTF 偏空。',note:'入場略早，可等更多確認。'},
+  {id:'TRD-003',date:'2026-03-11',inst:'NQ',dir:'LONG',setup:'其他',session:'紐約 AM',window:'9-10am',firm:'Apex Trader',quality:'D',pl:-980,r:-1.02,rating:1,result:'LOSS',rules:false,be:false,pos:[],neg:['衝動進場','FOMO 追入'],reason:'錯過原來OB入場後FOMO追入，沒有LTF確認。',note:'典型FOMO交易，立刻逆轉。教訓：錯過就算了，等下一個機會。'},
+  {id:'TRD-004',date:'2026-03-12',inst:'GC',dir:'LONG',setup:'CHOCH 結構轉折',session:'倫敦',window:'7-8am',firm:'Topstep',quality:'A+',pl:2550,r:3.92,rating:5,result:'WIN',rules:true,be:true,pos:['耐心等待','計畫一致'],neg:[],reason:'Gold CHOCH 在掃低後出現。HTF 需求區完好，倫敦動能配合。',note:'本週最佳交易。一路持倉到TP。日誌紀律有效。'},
+  {id:'TRD-005',date:'2026-03-13',inst:'ES',dir:'LONG',setup:'Breaker Block',session:'紐約 AM',window:'9-10am',firm:'FTMO',quality:'A',pl:2275,r:2.92,rating:4,result:'WIN',rules:true,be:true,pos:['良好管控'],neg:[],reason:'ES 回測前阻力轉Breaker，BOS後紐約AM量能配合。',note:'穩健R值。+1R後移至保本。'}
+]);
+let reviews = load('ers_reviews', [
+  {id:'R-001',date:'2026-03-10',mood:'🟢 專注清晰',plan:'ES & NQ 均在VWAP上。預期紐約AM延續。NQ看19240 OB，ES看5180 FVG。最多2筆，連輸2筆停止。',review:'NQ OB多單完美執行，ES FVG空單也收割。兩筆都到TP。近幾週最佳盤面。',lesson:'盤前計劃讓執行更清晰，消除衝動。',count:2,pl:4677.5,adherence:'100% — 完美'},
+  {id:'R-002',date:'2026-03-11',mood:'🟠 焦慮',plan:'市場跳空高開。等待回調做多。關鍵位：NQ 19350 OB（新），ES 5170 Breaker。',review:'錯過NQ的乾淨OB入場，FOMO追入被止損。一筆虧損後提早收盤——這算是一種紀律。',lesson:'錯過入場不是虧損，FOMO追入才是。如果你錯過了，放棄這筆，等下一個。市場永遠會給下一個機會。',count:1,pl:-980,adherence:'低於60% — 需檢討'},
+  {id:'R-003',date:'2026-03-12',mood:'🔵 冷靜自律',plan:'黃金HTF結構強勁。如果倫敦掃前低，等1H CHOCH設置。ES看5148 Breaker。',review:'Gold CHOCH在倫敦時段完美發揮，差點拿到4R。ES設置不夠乾淨，選擇放棄——完美選擇性。',lesson:'質勝於量。一筆出色的交易勝過三筆平庸的。這就是1% ERS的方式。',count:1,pl:2550,adherence:'100% — 完美'}
+]);
+let missedTrades = load('ers_missed', [
+  {id:'M-001',date:'2026-03-11',inst:'NQ',dir:'LONG',setup:'OB 訂單區塊',r:2.8,why:'沒注意到訊號',note:'19350 OB非常乾淨，BOS確認後一個回調K棒。教科書級別的進場。',lesson:'需要設置價格提醒在關鍵OB位置。'}
+]);
+let milestones = load('ers_milestones', [
+  {id:'MS-001',category:'Prop Firm',title:'首個資金帳戶通過',target:'通過任何一家Prop Firm Phase 1 & 2',status:'achieved',notes:'已在多家公司達成。系統有效的證明。'},
+  {id:'MS-002',category:'紀律',title:'連續10天100%遵守規則',target:'連續10天完美執行所有交易規則',status:'inprog',notes:'目前第4天。建立100%遵守規則的習慣。'},
+  {id:'MS-003',category:'獲利目標',title:'單月淨利$10,000',target:'單月所有資金帳戶淨利超過$10,000',status:'inprog',notes:'目前最高單月約$8,500，快接近目標。'},
+  {id:'MS-004',category:'社群',title:'Discord 達50人',target:'1% ERS 免費Discord社群成長到50位活躍成員',status:'achieved',notes:'變現之路的第一個里程碑。'},
+  {id:'MS-005',category:'社群',title:'推出付費Discord',target:'推出基礎付費方案 (TWD 399/月)',status:'notstart',notes:'目標：第2個月。需要先持續3個月免費內容。'},
+  {id:'MS-006',category:'一致性',title:'連續3個月勝率70%+',target:'連續3個月維持70%以上的勝率',status:'inprog',notes:'第1月：68% 第2月：73% 第3月進行中。'}
+]);
+
+let editingTradeId = null;
+let viewYear=2026, viewMonth=2; // 0-indexed, March=2
+let currentTab = 'dashboard';
+
+// ══════════════════════════════════
+//  TAB ROUTING
+// ══════════════════════════════════
+function showTab(tab){
+  currentTab = tab;
+  // nav items
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    el.classList.toggle('active', el.getAttribute('onclick')===`showTab('${tab}')`);
+  });
+  document.querySelectorAll('.tab-btn').forEach(el=>{
+    el.classList.toggle('active', el.getAttribute('onclick')===`showTab('${tab}')`);
+  });
+  const area = document.getElementById('contentArea');
+  if(tab==='dashboard') renderDashboard(area);
+  else if(tab==='analytics') renderAnalytics(area);
+  else if(tab==='review') renderReview(area);
+  else if(tab==='trades') renderTrades(area);
+  else if(tab==='missed') renderMissed(area);
+  else if(tab==='milestones') renderMilestones(area);
+  else if(tab==='guide') renderGuide(area);
+}
+
+// ══════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════
+function fpl(v,dollar=true){
+  const abs=Math.abs(v);
+  const s = v>=0?'+':'-';
+  const str = abs>=1000?(abs/1000).toFixed(1)+'K':abs.toFixed(0);
+  return dollar ? s+'$'+str : s+str;
+}
+function getMonthTrades(y,m){ return trades.filter(t=>{const d=new Date(t.date);return d.getFullYear()===y&&d.getMonth()===m;}); }
+function calcStats(trList){
+  const wins=trList.filter(t=>t.result==='WIN').length;
+  const losses=trList.filter(t=>t.result==='LOSS').length;
+  const totalPL=trList.reduce((s,t)=>s+t.pl,0);
+  const grossW=trList.filter(t=>t.pl>0).reduce((s,t)=>s+t.pl,0);
+  const grossL=Math.abs(trList.filter(t=>t.pl<0).reduce((s,t)=>s+t.pl,0));
+  const pf=grossL>0?(grossW/grossL):null;
+  const avgR=trList.length?trList.reduce((s,t)=>s+t.r,0)/trList.length:0;
+  const wr=trList.length?wins/trList.length*100:0;
+  return {wins,losses,totalPL,pf,avgR,wr,count:trList.length};
+}
+function ratingBar(r){
+  let h='<div class="rating-bar">';
+  for(let i=1;i<=5;i++) h+=`<div class="rating-pip${i<=r?' on':''}"></div>`;
+  return h+'</div>';
+}
+const MONTHS=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ══════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════
+function renderDashboard(area){
+  const mt=getMonthTrades(viewYear,viewMonth);
+  const s=calcStats(mt);
+  area.innerHTML=`
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-head"><span class="lbl">勝率</span><span>🎯</span></div>
+        <div class="stat-val n">${s.wr.toFixed(1)}%</div>
+        <div class="stat-sub">共 ${s.wins} 勝 ${s.losses} 敗</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-head"><span class="lbl">本月淨盈虧</span><span style="color:#16a34a">💲</span></div>
+        <div class="stat-val ${s.totalPL>=0?'g':'r'}">${fpl(s.totalPL)}</div>
+        <div class="stat-sub">共 ${s.count} 筆交易</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-head"><span class="lbl">平均 R 倍數</span><span>📐</span></div>
+        <div class="stat-val n">${s.avgR.toFixed(2)}R</div>
+        <div class="stat-sub">最佳：${mt.length?Math.max(...mt.map(t=>t.r)).toFixed(2)+'R':'—'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-head"><span class="lbl">獲利因子</span><span>⚡</span></div>
+        <div class="stat-val n">${s.pf!==null?s.pf.toFixed(2):'—'}</div>
+        <div class="stat-sub">${s.pf&&s.pf>2?'<span class="up">優秀</span>':s.pf&&s.pf>1?'<span class="up">良好</span>':'<span class="dn">需改善</span>'}</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div id="calSection"></div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">績效輪廓</div>
+          <canvas id="radarChart" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">最近3筆交易</div>
+          ${[...trades].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,3).map(t=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;cursor:pointer;" onclick="openModal('trade','${t.id}')">
+              <div>
+                <div style="font-size:12px;font-weight:700">${t.inst} <span class="badge ${t.dir==='LONG'?'long':'short'}" style="margin-left:4px">${t.dir}</span></div>
+                <div style="font-size:11px;color:#aaa;margin-top:2px">${t.date.slice(5)} · ${t.setup.split(' ')[0]}</div>
+              </div>
+              <div style="text-align:right">
+                <div class="${t.pl>=0?'pl-p':'pl-n'}">${fpl(t.pl)}</div>
+                <div style="font-size:11px;color:#aaa">${t.r>0?'+':''}${t.r}R</div>
+              </div>
+            </div>
+          `).join('')}
+          <div style="text-align:center;margin-top:10px"><button class="btn-add" onclick="showTab('trades')" style="width:100%;justify-content:center">查看所有交易</button></div>
+        </div>
+      </div>
+    </div>`;
+  renderCalendar();
+  initRadar();
+}
+
+function renderCalendar(){
+  const sec=document.getElementById('calSection');
+  if(!sec) return;
+  const mt=getMonthTrades(viewYear,viewMonth);
+  const s=calcStats(mt);
+  const dayData={};
+  mt.forEach(t=>{const k=new Date(t.date).getDate();if(!dayData[k])dayData[k]={pl:0,count:0};dayData[k].pl+=t.pl;dayData[k].count++;});
+  const firstDow=new Date(viewYear,viewMonth,1).getDay();
+  const startMon=(firstDow+6)%7; // Mon=0
+  const daysInMonth=new Date(viewYear,viewMonth+1,0).getDate();
+  const today=new Date();
+  let cells=[];
+  for(let i=0;i<startMon;i++) cells.push(null);
+  for(let d=1;d<=daysInMonth;d++) cells.push(d);
+  while(cells.length%5!==0) cells.push(null);
+
+  let gridHtml='';
+  for(let i=0;i<cells.length;i+=5){
+    const week=cells.slice(i,i+5);
+    let wPL=0,wCt=0;
+    week.forEach(d=>{if(d&&dayData[d]){wPL+=dayData[d].pl;wCt+=dayData[d].count;}});
+    week.forEach(d=>{
+      if(!d){gridHtml+=`<div class="cal-cell empty"></div>`;return;}
+      const isTd=today.getDate()===d&&today.getMonth()===viewMonth&&today.getFullYear()===viewYear;
+      const cls=`cal-cell${dayData[d]?(dayData[d].pl>=0?' win':' loss'):''}${isTd?' today':''}`;
+      gridHtml+=`<div class="${cls}">
+        <div class="cal-d">${d}</div>
+        ${dayData[d]?`<div class="cal-ct">${dayData[d].count}筆</div><div class="cal-pl ${dayData[d].pl>=0?'g':'r'}">${fpl(dayData[d].pl)}</div>`:''}
+      </div>`;
+    });
+    gridHtml+=`<div class="cal-cell cal-sum">
+      ${wCt>0?`<div class="sum-lbl">週合計</div><div class="sum-ct">${wCt}筆</div><div class="sum-pl ${wPL>=0?'pl-p':'pl-n'}">${fpl(wPL)}</div>`:''}
+    </div>`;
+  }
+  sec.innerHTML=`<div class="cal-wrap">
+    <div class="cal-topbar">
+      <span class="title">${viewYear}年 ${MONTHS[viewMonth]}</span>
+      <span class="cal-stats">P/L: <span class="gv">${fpl(s.totalPL)}</span> &nbsp; 交易: <span>${s.count}</span></span>
+    </div>
+    <div class="cal-header">
+      <div class="cal-lbl">週一</div><div class="cal-lbl">週二</div>
+      <div class="cal-lbl">週三</div><div class="cal-lbl">週四</div>
+      <div class="cal-lbl">週五</div><div class="cal-lbl">週合計</div>
+    </div>
+    <div class="cal-grid">${gridHtml}</div>
+  </div>`;
+}
+
+function initRadar(){
+  const allS=calcStats(trades);
+  const ctx=document.getElementById('radarChart');
+  if(!ctx) return;
+  if(window._radarInst) window._radarInst.destroy();
+  window._radarInst=new Chart(ctx,{
+    type:'radar',
+    data:{
+      labels:['勝率','恢復因子','獲利因子','一致性','規則遵守'],
+      datasets:[{
+        data:[allS.wr,65,allS.pf?Math.min(allS.pf*10,100):50,72,trades.filter(t=>t.rules).length/Math.max(trades.length,1)*100],
+        backgroundColor:'rgba(34,197,94,.18)',borderColor:'rgba(34,197,94,.9)',borderWidth:2,
+        pointBackgroundColor:'rgba(34,197,94,1)',pointRadius:3
+      }]
+    },
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:8},color:'#ccc'},
+        grid:{color:'#eee'},angleLines:{color:'#eee'},pointLabels:{font:{size:10},color:'#888'}}}}
+  });
+}
+
+// ══════════════════════════════════
+//  ANALYTICS
+// ══════════════════════════════════
+function renderAnalytics(area){
+  // Build datasets
+  const setupMap={};
+  trades.forEach(t=>{const k=t.setup.split(' ')[0];if(!setupMap[k])setupMap[k]={wins:0,total:0,pl:0};setupMap[k].total++;if(t.result==='WIN')setupMap[k].wins++;setupMap[k].pl+=t.pl;});
+  const sessionMap={};
+  trades.forEach(t=>{const k=t.session;if(!sessionMap[k])sessionMap[k]={wins:0,total:0,pl:0};sessionMap[k].total++;if(t.result==='WIN')sessionMap[k].wins++;sessionMap[k].pl+=t.pl;});
+  const dowMap={1:0,2:0,3:0,4:0,5:0};
+  trades.forEach(t=>{const d=new Date(t.date).getDay();if(d>=1&&d<=5)dowMap[d]+=t.pl;});
+  const instMap={};
+  trades.forEach(t=>{if(!instMap[t.inst])instMap[t.inst]={wins:0,total:0};instMap[t.inst].total++;if(t.result==='WIN')instMap[t.inst].wins++;});
+
+  area.innerHTML=`
+    <div class="review-tabs" style="margin-bottom:18px">
+      <button class="rtab active" onclick="showAnalyticsTab('overview',this)">總覽</button>
+      <button class="rtab" onclick="showAnalyticsTab('time',this)">時間分析</button>
+      <button class="rtab" onclick="showAnalyticsTab('risk',this)">風險分析</button>
+      <button class="rtab" onclick="showAnalyticsTab('discipline',this)">紀律分析</button>
+    </div>
+    <div id="analyticsContent"></div>`;
+  showAnalyticsTab('overview',area.querySelector('.rtab'));
+}
+
+function showAnalyticsTab(tab, btn){
+  document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const area=document.getElementById('analyticsContent');
+  const s=calcStats(trades);
+
+  if(tab==='overview'){
+    const setupMap={};
+    trades.forEach(t=>{const k=t.setup.split(' ')[0];if(!setupMap[k])setupMap[k]={wins:0,total:0,pl:0};setupMap[k].total++;if(t.result==='WIN')setupMap[k].wins++;setupMap[k].pl+=t.pl;});
+    const instMap={};
+    trades.forEach(t=>{if(!instMap[t.inst])instMap[t.inst]={wins:0,total:0};instMap[t.inst].total++;if(t.result==='WIN')instMap[t.inst].wins++;});
+    area.innerHTML=`
+      <div class="chart-grid">
+        <div class="card"><div class="card-title">策略勝率</div><canvas id="setupChart"></canvas></div>
+        <div class="card"><div class="card-title">商品表現</div><canvas id="instChart"></canvas></div>
+      </div>
+      <div class="card"><div class="card-title">月度盈虧趨勢</div><canvas id="monthChart" height="80"></canvas></div>`;
+    setTimeout(()=>{
+      // Setup chart
+      const su=Object.entries(setupMap);
+      new Chart(document.getElementById('setupChart'),{type:'bar',data:{
+        labels:su.map(([k])=>k),
+        datasets:[{label:'勝率%',data:su.map(([,v])=>v.total?v.wins/v.total*100:0),backgroundColor:'rgba(34,197,94,.7)',borderRadius:6}]
+      },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}}});
+      // Inst chart
+      const ii=Object.entries(instMap);
+      new Chart(document.getElementById('instChart'),{type:'doughnut',data:{
+        labels:ii.map(([k])=>k),
+        datasets:[{data:ii.map(([,v])=>v.total),backgroundColor:['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6']}]
+      },options:{responsive:true,plugins:{legend:{position:'right'}}}});
+      // Month P&L
+      const mMap={};
+      trades.forEach(t=>{const d=new Date(t.date);const k=`${d.getFullYear()}/${d.getMonth()+1}`;if(!mMap[k])mMap[k]=0;mMap[k]+=t.pl;});
+      const mEntries=Object.entries(mMap).sort();
+      new Chart(document.getElementById('monthChart'),{type:'bar',data:{
+        labels:mEntries.map(([k])=>k),
+        datasets:[{label:'淨盈虧',data:mEntries.map(([,v])=>v),backgroundColor:mEntries.map(([,v])=>v>=0?'rgba(34,197,94,.7)':'rgba(220,38,38,.7)'),borderRadius:4}]
+      },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v}}}}});
+    },50);
+  }
+  else if(tab==='time'){
+    const sessionMap={};
+    trades.forEach(t=>{const k=t.session;if(!sessionMap[k])sessionMap[k]={wins:0,total:0,pl:0};sessionMap[k].total++;if(t.result==='WIN')sessionMap[k].wins++;sessionMap[k].pl+=t.pl;});
+    const dowMap={'週一':0,'週二':0,'週三':0,'週四':0,'週五':0};
+    const dowDays=[1,2,3,4,5]; const dowNames=['週一','週二','週三','週四','週五'];
+    trades.forEach(t=>{const d=new Date(t.date).getDay();const idx=dowDays.indexOf(d);if(idx>=0)dowMap[dowNames[idx]]+=t.pl;});
+    area.innerHTML=`
+      <div class="chart-grid">
+        <div class="card"><div class="card-title">交易時段盈虧</div><canvas id="sessionChart"></canvas></div>
+        <div class="card"><div class="card-title">星期幾盈虧 (星期效應)</div><canvas id="dowChart"></canvas></div>
+      </div>`;
+    setTimeout(()=>{
+      const se=Object.entries(sessionMap);
+      new Chart(document.getElementById('sessionChart'),{type:'bar',data:{
+        labels:se.map(([k])=>k),
+        datasets:[{label:'淨盈虧',data:se.map(([,v])=>v.pl),backgroundColor:se.map(([,v])=>v.pl>=0?'rgba(34,197,94,.7)':'rgba(220,38,38,.7)'),borderRadius:6}]
+      },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v}}}}});
+      const de=Object.entries(dowMap);
+      new Chart(document.getElementById('dowChart'),{type:'bar',data:{
+        labels:de.map(([k])=>k),
+        datasets:[{label:'淨盈虧',data:de.map(([,v])=>v),backgroundColor:de.map(([,v])=>v>=0?'rgba(34,197,94,.7)':'rgba(220,38,38,.7)'),borderRadius:6}]
+      },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v}}}}});
+    },50);
+  }
+  else if(tab==='risk'){
+    const rMap={'A+':0,'A':0,'B':0,'C':0,'D':0};
+    trades.forEach(t=>{if(rMap[t.quality]!==undefined)rMap[t.quality]+=t.pl;});
+    area.innerHTML=`
+      <div class="chart-grid">
+        <div class="card"><div class="card-title">執行品質 vs 盈虧</div><canvas id="qualChart"></canvas></div>
+        <div class="card"><div class="card-title">R 倍數分佈</div><canvas id="rChart"></canvas></div>
+      </div>
+      <div class="card"><div class="card-title">累積盈虧曲線</div><canvas id="equityChart" height="80"></canvas></div>`;
+    setTimeout(()=>{
+      new Chart(document.getElementById('qualChart'),{type:'bar',data:{
+        labels:Object.keys(rMap),
+        datasets:[{label:'淨盈虧',data:Object.values(rMap),backgroundColor:['#22c55e','#4ade80','#86efac','#fca5a5','#ef4444'],borderRadius:6}]
+      },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v}}}}});
+      const rVals=trades.map(t=>t.r).sort((a,b)=>a-b);
+      const buckets={'-2~-1':0,'-1~0':0,'0~1':0,'1~2':0,'2~3':0,'3~4':0,'4+':0};
+      rVals.forEach(r=>{if(r<-1)buckets['-2~-1']++;else if(r<0)buckets['-1~0']++;else if(r<1)buckets['0~1']++;else if(r<2)buckets['1~2']++;else if(r<3)buckets['2~3']++;else if(r<4)buckets['3~4']++;else buckets['4+']++;});
+      new Chart(document.getElementById('rChart'),{type:'bar',data:{
+        labels:Object.keys(buckets),
+        datasets:[{label:'交易筆數',data:Object.values(buckets),backgroundColor:'rgba(59,130,246,.7)',borderRadius:6}]
+      },options:{responsive:true,plugins:{legend:{display:false}}}});
+      // Equity curve
+      const sorted=[...trades].sort((a,b)=>new Date(a.date)-new Date(b.date));
+      let cum=0;const eq=sorted.map(t=>{cum+=t.pl;return cum;});
+      new Chart(document.getElementById('equityChart'),{type:'line',data:{
+        labels:sorted.map(t=>t.id),
+        datasets:[{label:'累積盈虧',data:eq,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:.4,pointRadius:4}]
+      },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v}}}}});
+    },50);
+  }
+  else if(tab==='discipline'){
+    const ruleY=trades.filter(t=>t.rules).length;
+    const ruleN=trades.filter(t=>!t.rules).length;
+    const emoMap={};
+    trades.forEach(t=>{
+      t.neg.forEach(n=>{if(!emoMap[n])emoMap[n]=0;emoMap[n]++;});
+    });
+    area.innerHTML=`
+      <div class="chart-grid">
+        <div class="card"><div class="card-title">規則遵守率</div><canvas id="ruleChart"></canvas></div>
+        <div class="card"><div class="card-title">負面標籤分佈</div><canvas id="negChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">紀律統計總結</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px">
+          <div style="text-align:center"><div style="font-size:28px;font-weight:800;color:#16a34a">${(ruleY/(ruleY+ruleN||1)*100).toFixed(0)}%</div><div style="font-size:11px;color:#888;margin-top:4px">規則遵守率</div></div>
+          <div style="text-align:center"><div style="font-size:28px;font-weight:800;color:#2563eb">${trades.filter(t=>t.be).length}</div><div style="font-size:11px;color:#888;margin-top:4px">成功移至保本</div></div>
+          <div style="text-align:center"><div style="font-size:28px;font-weight:800;color:#7c3aed">${trades.filter(t=>t.neg.length===0&&t.rules).length}</div><div style="font-size:11px;color:#888;margin-top:4px">完美執行交易</div></div>
+        </div>
+      </div>`;
+    setTimeout(()=>{
+      new Chart(document.getElementById('ruleChart'),{type:'doughnut',data:{
+        labels:['遵守規則','違反規則'],
+        datasets:[{data:[ruleY,ruleN],backgroundColor:['#22c55e','#ef4444']}]
+      },options:{responsive:true,plugins:{legend:{position:'bottom'}}}});
+      const ne=Object.entries(emoMap);
+      if(ne.length){
+        new Chart(document.getElementById('negChart'),{type:'bar',data:{
+          labels:ne.map(([k])=>k),datasets:[{label:'次數',data:ne.map(([,v])=>v),backgroundColor:'rgba(220,38,38,.7)',borderRadius:6}]
+        },options:{responsive:true,plugins:{legend:{display:false}}}});
+      } else {
+        document.getElementById('negChart').parentElement.innerHTML='<div class="card-title">負面標籤分佈</div><div class="empty-state">🎉 目前沒有負面標籤紀錄！</div>';
+      }
+    },50);
+  }
+}
+
+// ══════════════════════════════════
+//  REVIEW
+// ══════════════════════════════════
+function renderReview(area){
+  area.innerHTML=`
+    <div class="section-hd"><h3>覆盤日記</h3><button class="btn-add" onclick="openModal('review-entry',null)"><span class="plus">+</span> 新增覆盤</button></div>
+    <div class="review-list">
+      ${[...reviews].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r=>`
+        <div class="review-card">
+          <div class="rc-head">
+            <span class="rc-date">${r.date}</span>
+            <span class="rc-mood ${r.mood.includes('🟢')||r.mood.includes('🔵')?'g':r.mood.includes('🟡')||r.mood.includes('🟠')||r.mood.includes('🔴')?'b':'n'}">${r.mood}</span>
+          </div>
+          ${r.plan?`<div class="rc-section"><div class="rc-lbl">盤前計畫</div><div class="rc-text">${r.plan}</div></div>`:''}
+          ${r.review?`<div class="rc-section"><div class="rc-lbl">盤後檢討</div><div class="rc-text">${r.review}</div></div>`:''}
+          ${r.lesson?`<div class="rc-section"><div class="rc-lbl">今日教訓 ✏️</div><div class="rc-text" style="color:#1a1a1a;font-style:italic">"${r.lesson}"</div></div>`:''}
+          <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:#aaa">
+            <span>📊 ${r.count||0} 筆交易</span>
+            <span class="${(r.pl||0)>=0?'pl-p':'pl-n'}">${fpl(r.pl||0)}</span>
+            <span>✅ ${r.adherence}</span>
+          </div>
+        </div>
+      `).join('')||'<div class="empty-state">還沒有覆盤記錄。點擊「新增覆盤」開始！</div>'}
+    </div>`;
+}
+
+// ══════════════════════════════════
+//  TRADES TABLE
+// ══════════════════════════════════
+function renderTrades(area){
+  area.innerHTML=`
+    <div class="tbl-wrap">
+      <div class="tbl-head">
+        <span class="tbl-title">交易紀錄 <span style="color:#aaa;font-weight:400;font-size:12px">(點擊任一行可編輯)</span></span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="search-box" id="tradeSearch" placeholder="搜尋商品、策略..." oninput="filterTrades(this.value)">
+          <button class="btn-add" onclick="openModal('trade',null)"><span class="plus">+</span> 新增</button>
+        </div>
+      </div>
+      <div id="tradesTableBody"></div>
+    </div>`;
+  filterTrades('');
+}
+
+function filterTrades(q){
+  const el=document.getElementById('tradesTableBody');
+  if(!el)return;
+  const filtered=trades.filter(t=>!q||t.inst.toLowerCase().includes(q.toLowerCase())||t.setup.toLowerCase().includes(q.toLowerCase())||t.dir.toLowerCase().includes(q.toLowerCase()));
+  const sorted=[...filtered].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  el.innerHTML=`<table><thead><tr>
+    <th>編號</th><th>日期</th><th>商品</th><th>方向</th><th>策略</th><th>時段</th>
+    <th>R倍數</th><th>盈虧</th><th>評分</th><th>結果</th><th>標籤</th>
+  </tr></thead><tbody>
+  ${sorted.map(t=>`<tr onclick="openModal('trade','${t.id}')">
+    <td style="font-family:monospace;font-size:11px;color:#aaa">${t.id}</td>
+    <td style="font-size:12px;color:#888">${t.date.slice(5)}</td>
+    <td><strong>${t.inst}</strong></td>
+    <td><span class="badge ${t.dir==='LONG'?'long':'short'}">${t.dir==='LONG'?'多':'空'}</span></td>
+    <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.setup}">${t.setup.split(' ').slice(0,2).join(' ')}</td>
+    <td style="font-size:11px;color:#888">${t.session}</td>
+    <td style="font-weight:700;color:${t.r>=0?'#16a34a':'#dc2626'}">${t.r>0?'+':''}${t.r}R</td>
+    <td class="${t.pl>=0?'pl-p':'pl-n'}">${fpl(t.pl)}</td>
+    <td>${ratingBar(t.rating)}</td>
+    <td><span class="badge ${t.result==='WIN'?'win':t.result==='LOSS'?'loss':'be'}">${t.result==='WIN'?'獲利':t.result==='LOSS'?'虧損':'保本'}</span></td>
+    <td><div class="tag-wrap">${t.pos.map(p=>`<span class="tag pos">${p}</span>`).join('')}${t.neg.map(n=>`<span class="tag neg">${n}</span>`).join('')}</div></td>
+  </tr>`).join('')||'<tr><td colspan="11" class="empty-state">沒有找到符合條件的交易。</td></tr>'}
+  </tbody></table>`;
+}
+
+// ══════════════════════════════════
+//  MISSED TRADES
+// ══════════════════════════════════
+function renderMissed(area){
+  area.innerHTML=`
+    <div class="section-hd"><h3>錯失交易</h3><button class="btn-add" onclick="openModal('missed',null)"><span class="plus">+</span> 新增</button></div>
+    <div class="tbl-wrap">
+      <table><thead><tr>
+        <th>日期</th><th>商品</th><th>方向</th><th>策略</th><th>預估R</th><th>錯失原因</th><th>教訓</th>
+      </tr></thead><tbody>
+      ${missedTrades.length?missedTrades.map(m=>`<tr>
+        <td style="font-size:12px;color:#888">${m.date.slice(5)}</td>
+        <td><strong>${m.inst}</strong></td>
+        <td><span class="badge ${m.dir==='LONG'?'long':'short'}">${m.dir==='LONG'?'多':'空'}</span></td>
+        <td style="font-size:11px">${m.setup.split(' ').slice(0,2).join(' ')}</td>
+        <td style="font-weight:700;color:#22c55e">+${m.r}R</td>
+        <td><span class="badge be" style="font-size:10px">${m.why}</span></td>
+        <td style="font-size:11px;color:#888;max-width:200px">${m.lesson}</td>
+      </tr>`).join(''):'<tr><td colspan="7" class="empty-state">還沒有錯失交易記錄。開始記錄你看到但沒進場的機會！</td></tr>'}
+      </tbody></table>
+    </div>`;
+}
+
+// ══════════════════════════════════
+//  MILESTONES
+// ══════════════════════════════════
+const catColors={'Prop Firm':'#7c3aed','獲利目標':'#16a34a','紀律':'#f59e0b','一致性':'#2563eb','社群':'#ec4899','個人成長':'#14b8a6'};
+function renderMilestones(area){
+  area.innerHTML=`
+    <div class="section-hd"><h3>里程碑</h3></div>
+    <div class="milestone-grid">
+      ${milestones.map(m=>`
+        <div class="ms-card">
+          <div class="ms-cat" style="color:${catColors[m.category]||'#888'}">${m.category.toUpperCase()}</div>
+          <div class="ms-title">${m.title}</div>
+          <div class="ms-target">${m.target}</div>
+          <span class="ms-status ${m.status}">${m.status==='achieved'?'✅ 已達成':m.status==='inprog'?'🔄 進行中':'⏳ 未開始'}</span>
+          ${m.notes?`<div style="font-size:11px;color:#888;margin-top:8px">${m.notes}</div>`:''}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// ══════════════════════════════════
+//  GITHUB GUIDE
+// ══════════════════════════════════
+function renderGuide(area){
+  area.innerHTML=`
+    <div class="info-box">
+      🌐 <strong>GitHub Pages 是免費的靜態網站托管服務</strong>。你可以把這個 HTML 檔案放上去，獲得一個永久連結（例如 <code>liam.github.io/journal</code>），然後把連結貼到 Notion 的 Embed 區塊，就能在 Notion 裡直接看到這個 Dashboard！
+    </div>
+    <div class="gh-step">
+      <span class="step-num">1</span><h4>下載此 HTML 檔案</h4>
+      <p>先把你修改好的版本存成 <code>index.html</code>（就是這個檔案）。</p>
+    </div>
+    <div class="gh-step">
+      <span class="step-num">2</span><h4>建立 GitHub 帳號（如果沒有）</h4>
+      <p>前往 <strong>github.com</strong> 免費註冊。用戶名會出現在你的網址裡，建議用 <code>liam-thetrader</code> 或 <code>1pct-ers</code>。</p>
+    </div>
+    <div class="gh-step">
+      <span class="step-num">3</span><h4>建立新的 Repository</h4>
+      <p>點右上角 <strong>「+ → New repository」</strong><br>
+      • Repository name：<code>trade-journal</code>（這會變成網址的一部分）<br>
+      • 設為 <strong>Public</strong>（私有倉庫不能用 Pages）<br>
+      • 勾選 <strong>「Add a README file」</strong><br>
+      • 點 <strong>「Create repository」</strong></p>
+    </div>
+    <div class="gh-step">
+      <span class="step-num">4</span><h4>上傳 HTML 檔案</h4>
+      <p>在 Repository 頁面點 <strong>「Add file → Upload files」</strong><br>
+      把 <code>index.html</code> 拖進去 → 輸入 commit message（例如「Add trade journal」）→ 點 <strong>「Commit changes」</strong></p>
+    </div>
+    <div class="gh-step">
+      <span class="step-num">5</span><h4>開啟 GitHub Pages</h4>
+      <p>在 Repository 頁面點 <strong>Settings</strong> → 左側找 <strong>Pages</strong><br>
+      在「Branch」選 <strong>main</strong>，資料夾選 <strong>/ (root)</strong> → 點 <strong>Save</strong><br>
+      等 1-2 分鐘後，你的網址就會出現：<code>https://你的用戶名.github.io/trade-journal/</code></p>
+    </div>
+    <div class="gh-step">
+      <span class="step-num">6</span><h4>嵌入 Notion</h4>
+      <p>在 Notion 頁面打 <code>/embed</code> → 貼上你的 GitHub Pages 網址 → Enter<br>
+      Dashboard 就會直接顯示在 Notion 裡！可以調整 embed 的高度讓它完整顯示。</p>
+    </div>
+    <div class="gh-step">
+      <span class="step-num">7</span><h4>更新資料（以後每次）</h4>
+      <p>日後如果想更新 HTML，回到 GitHub Repository → 點 <code>index.html</code> → 點鉛筆圖示編輯 → 修改後 Commit changes。<br>
+      GitHub Pages 會自動在幾分鐘內更新。你的 Notion embed 也會同步更新！</p>
+    </div>
+    <div class="info-box" style="margin-top:16px;background:#f0fdf4;border-color:#bbf7d0">
+      💡 <strong>重要提醒：</strong>這個 Dashboard 的交易資料存在瀏覽器的 <code>localStorage</code> 裡。
+      如果你在 GitHub Pages 上直接操作（新增/修改交易），資料只存在你自己的瀏覽器，不會上傳到 GitHub。
+      想要多裝置同步，建議搭配 Notion 作為主要資料庫，本 Dashboard 作為唯讀視覺化工具。
+    </div>`;
+}
+
+// ══════════════════════════════════
+//  MODALS
+// ══════════════════════════════════
+function openModal(type, id){
+  if(type==='trade'){
+    editingTradeId=id;
+    const t=id?trades.find(x=>x.id===id):null;
+    document.getElementById('tradeModalTitle').textContent=id?`✏️ 編輯交易 — ${id}`:'➕ 新增交易';
+    document.getElementById('btnDelete').style.display=id?'block':'none';
+    const today=new Date().toISOString().slice(0,10);
+    setValue('t-date', t?t.date:today);
+    setSelect('t-inst', t?t.inst:'NQ');
+    setSelect('t-dir', t?t.dir:'LONG');
+    setSelect('t-setup', t?t.setup:'OB 訂單區塊');
+    setSelect('t-session', t?t.session:'紐約 AM');
+    setSelect('t-window', t?t.window:'9-10am');
+    setSelect('t-firm', t?t.firm:'Apex Trader');
+    setSelect('t-quality', t?t.quality:'A');
+    setValue('t-pl', t?t.pl:'');
+    setValue('t-r', t?t.r:'');
+    setSelect('t-rating', t?String(t.rating):'4');
+    setSelect('t-result', t?t.result:'WIN');
+    setSelect('t-rules', t?(t.rules?'✅ 是':'❌ 否'):'✅ 是');
+    setSelect('t-be', t?(t.be?'✅ 是':'❌ 否'):'❌ 否');
+    setValue('t-reason', t?t.reason:'');
+    setValue('t-note', t?t.note:'');
+    // multi-selects
+    ['t-pos','t-neg'].forEach(sid=>{
+      const sel=document.getElementById(sid);
+      const vals=t?(sid==='t-pos'?t.pos:t.neg):[];
+      Array.from(sel.options).forEach(o=>o.selected=vals.includes(o.value));
+    });
+    document.getElementById('tradeOverlay').classList.add('open');
+  }
+  else if(type==='review-entry'){
+    const today=new Date().toISOString().slice(0,10);
+    setValue('r-date',today);setSelect('r-mood','🔵 冷靜自律');
+    setValue('r-plan','');setValue('r-review','');setValue('r-lesson','');
+    setValue('r-count','');setValue('r-pl','');
+    setSelect('r-adherence','100% — 完美');
+    document.getElementById('reviewOverlay').classList.add('open');
+  }
+  else if(type==='missed'){
+    const today=new Date().toISOString().slice(0,10);
+    setValue('ms-date',today);
+    document.getElementById('missedOverlay').classList.add('open');
+  }
+}
+function closeModals(){
+  document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open'));
+  editingTradeId=null;
+}
+function setValue(id,v){const el=document.getElementById(id);if(el)el.value=v;}
+function setSelect(id,v){
+  const el=document.getElementById(id);if(!el)return;
+  const opt=Array.from(el.options).find(o=>o.value===v||o.text===v||o.value.startsWith(v)||v&&v.toString().startsWith(o.value));
+  if(opt)el.value=opt.value;else el.value=v;
+}
+function getSelectedMulti(id){return Array.from(document.getElementById(id).selectedOptions).map(o=>o.value);}
+
+function saveTrade(){
+  const pl=parseFloat(document.getElementById('t-pl').value)||0;
+  const r=parseFloat(document.getElementById('t-r').value)||0;
+  const dir=document.getElementById('t-dir').value.split(' ')[0];
+  const result=document.getElementById('t-result').value.split(' ')[0];
+  const newT={
+    id: editingTradeId||(trades.length>0?'TRD-'+String(Math.max(...trades.map(t=>parseInt(t.id.split('-')[1]||0)))+1).padStart(3,'0'):'TRD-001'),
+    date:document.getElementById('t-date').value,
+    inst:document.getElementById('t-inst').value,
+    dir,
+    setup:document.getElementById('t-setup').value,
+    session:document.getElementById('t-session').value,
+    window:document.getElementById('t-window').value,
+    firm:document.getElementById('t-firm').value,
+    quality:document.getElementById('t-quality').value,
+    pl,r,
+    rating:parseInt(document.getElementById('t-rating').value),
+    result,
+    rules:document.getElementById('t-rules').value==='✅ 是',
+    be:document.getElementById('t-be').value==='✅ 是',
+    pos:getSelectedMulti('t-pos'),
+    neg:getSelectedMulti('t-neg'),
+    reason:document.getElementById('t-reason').value,
+    note:document.getElementById('t-note').value
+  };
+  if(editingTradeId){ const idx=trades.findIndex(t=>t.id===editingTradeId);if(idx>=0)trades[idx]=newT;else trades.push(newT); }
+  else trades.push(newT);
+  save('ers_trades',trades);
+  closeModals();
+  showTab(currentTab);
+}
+
+function deleteTrade(){
+  if(!editingTradeId)return;
+  if(!confirm(`確定要刪除交易 ${editingTradeId}？`))return;
+  trades=trades.filter(t=>t.id!==editingTradeId);
+  save('ers_trades',trades);
+  closeModals();
+  showTab(currentTab);
+}
+
+function saveReview(){
+  const today=document.getElementById('r-date').value;
+  reviews.push({
+    id:'R-'+String(reviews.length+1).padStart(3,'0'),
+    date:today,
+    mood:document.getElementById('r-mood').value,
+    plan:document.getElementById('r-plan').value,
+    review:document.getElementById('r-review').value,
+    lesson:document.getElementById('r-lesson').value,
+    count:parseInt(document.getElementById('r-count').value)||0,
+    pl:parseFloat(document.getElementById('r-pl').value)||0,
+    adherence:document.getElementById('r-adherence').value
+  });
+  save('ers_reviews',reviews);
+  closeModals();
+  if(currentTab==='review')showTab('review');
+}
+
+function saveMissed(){
+  missedTrades.push({
+    id:'M-'+String(missedTrades.length+1).padStart(3,'0'),
+    date:document.getElementById('ms-date').value,
+    inst:document.getElementById('ms-inst').value,
+    dir:document.getElementById('ms-dir').value.split(' ')[0],
+    setup:document.getElementById('ms-setup').value,
+    r:parseFloat(document.getElementById('ms-r').value)||0,
+    why:document.getElementById('ms-why').value,
+    note:document.getElementById('ms-note').value,
+    lesson:document.getElementById('ms-lesson').value
+  });
+  save('ers_missed',missedTrades);
+  closeModals();
+  if(currentTab==='missed')showTab('missed');
+}
+
+// Month nav
+function changeMonth(d){
+  viewMonth+=d;
+  if(viewMonth>11){viewMonth=0;viewYear++;}
+  if(viewMonth<0){viewMonth=11;viewYear--;}
+  document.getElementById('monthLabel').textContent=`${viewYear}年${MONTHS[viewMonth]}`;
+  if(currentTab==='dashboard')renderCalendar();
+}
+document.getElementById('monthLabel').textContent=`${viewYear}年${MONTHS[viewMonth]}`;
+
+// Close on backdrop
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModals();}));
+
+// Init
+showTab('dashboard');
+</script>
+</body>
+</html>
